@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -29,8 +29,21 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
       setLoading(false)
-    } else {
-      router.push("/dashboard")
+    } else if (data.user) {
+      // Check if profile is complete
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, bio")
+        .eq("id", data.user.id)
+        .single()
+
+      const isProfileComplete = profile?.full_name && profile?.bio
+
+      if (isProfileComplete) {
+        router.push("/dashboard")
+      } else {
+        router.push("/settings/profile")
+      }
       router.refresh()
     }
   }

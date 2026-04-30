@@ -5,14 +5,24 @@ import { cookies } from "next/headers"
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
-  const next = searchParams.get("next") ?? "/dashboard"
 
   if (code) {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (!error && data.user) {
+      // Check if profile is complete
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, bio")
+        .eq("id", data.user.id)
+        .single()
+
+      const isProfileComplete = profile?.full_name && profile?.bio
+
+      const redirectUrl = isProfileComplete ? "/dashboard" : "/settings/profile"
+      return NextResponse.redirect(`${origin}${redirectUrl}`)
     }
   }
 

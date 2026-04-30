@@ -1,16 +1,58 @@
-export default function ChaliahPage({ params }: { params: { slug: string } }) {
+import { notFound } from "next/navigation"
+import { createClient } from "@/utils/supabase/server"
+import { cookies } from "next/headers"
+import { ChaliahProfile } from "./chaliah-profile"
+
+interface ChaliahPageProps {
+  params: Promise<{ slug: string }>
+}
+
+export default async function ChaliahPage({ params }: ChaliahPageProps) {
+  const { slug } = await params
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  // Get current user (for checking if viewing own profile)
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+  // Get chaliah by slug
+  const { data: chaliah } = await supabase
+    .from("chaliah")
+    .select("*, profiles(*)")
+    .eq("slug", slug)
+    .single()
+
+  if (!chaliah) {
+    notFound()
+  }
+
+  // Get claimed Beth Habad
+  const { data: bethHabad } = await supabase
+    .from("beth_habad_claims")
+    .select("*, beth_habad(*)")
+    .eq("chaliah_id", chaliah.id)
+    .eq("status", "approved")
+    .single()
+
+  // Check if current user is following this chaliah
+  let isFollowing = false
+  if (currentUser) {
+    const { data: follow } = await supabase
+      .from("follows")
+      .select("*")
+      .eq("follower_id", currentUser.id)
+      .eq("following_id", chaliah.user_id)
+      .single()
+    isFollowing = !!follow
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold text-foreground mb-8">
-          Profil Chaliah: {params.slug}
-        </h1>
-        <div className="card p-8 border rounded-lg">
-          <p className="text-muted-foreground">
-            Page de profil du Chaliah - Contenu à venir
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+    <ChaliahProfile
+      chaliah={chaliah}
+      profile={chaliah.profiles}
+      bethHabad={bethHabad?.beth_habad}
+      currentUser={currentUser}
+      isFollowing={isFollowing}
+    />
+  )
 }

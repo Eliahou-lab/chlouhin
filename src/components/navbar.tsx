@@ -42,6 +42,7 @@ export function Navbar() {
     { name: "Accueil", href: "/" },
     { name: "Carte", href: "/map" },
     { name: "Tableau de bord", href: "/dashboard" },
+    { name: "Profil", href: "/settings/profile" },
   ]
 
   const navigation = user ? privateNav : publicNav
