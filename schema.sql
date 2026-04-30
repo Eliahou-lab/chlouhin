@@ -432,6 +432,34 @@ CREATE TRIGGER update_events_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
+-- AUTH TRIGGER: Auto-create profile on signup
+-- ============================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, avatar_url, bio)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'picture', ''),
+    ''
+  );
+  
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (NEW.id, 'visitor');
+  
+  RETURN NEW;
+END;
+$$ language plpgsql security definer;
+
+-- Drop trigger if exists (for idempotency)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ============================================
 -- INITIAL DATA (Optional)
 -- ============================================
 -- Add a default admin role (you'll need to manually assign this to a user)

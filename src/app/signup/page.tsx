@@ -8,34 +8,51 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    if (password !== confirmPassword) {
+      setError("Les mots de passe ne correspondent pas")
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères")
+      setLoading(false)
+      return
+    }
+
+    const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push("/dashboard")
-      router.refresh()
+      setSuccess(true)
+      setLoading(false)
     }
   }
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -48,12 +65,34 @@ export default function LoginPage() {
     }
   }
 
+  if (success) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="max-w-md mx-auto text-center">
+            <div className="card p-8 border rounded-lg">
+              <h2 className="text-2xl font-bold text-foreground mb-4">
+                Inscription réussie!
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                Vérifiez votre email pour confirmer votre compte.
+              </p>
+              <Button onClick={() => router.push("/login")}>
+                Aller à la connexion
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-md mx-auto">
           <h1 className="text-3xl font-bold text-foreground mb-8 text-center">
-            Connexion
+            Créer un compte
           </h1>
           
           <div className="card p-8 border rounded-lg space-y-6">
@@ -63,7 +102,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleEmailLogin} className="space-y-4">
+            <form onSubmit={handleEmailSignup} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -88,8 +127,20 @@ export default function LoginPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Connexion..." : "Se connecter"}
+                {loading ? "Inscription..." : "S&apos;inscrire"}
               </Button>
             </form>
 
@@ -107,7 +158,7 @@ export default function LoginPage() {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={handleGoogleLogin}
+              onClick={handleGoogleSignup}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -131,9 +182,9 @@ export default function LoginPage() {
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">
-              Pas encore de compte?{" "}
-              <Link href="/signup" className="text-primary hover:underline">
-                S&apos;inscrire
+              Déjà un compte?{" "}
+              <Link href="/login" className="text-primary hover:underline">
+                Se connecter
               </Link>
             </p>
           </div>

@@ -2,17 +2,49 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
+import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-
-const navigation = [
-  { name: "Accueil", href: "/" },
-  { name: "Carte", href: "/map" },
-  { name: "Connexion", href: "/login" },
-  { name: "Tableau de bord", href: "/dashboard" },
-]
+import { Button } from "@/components/ui/button"
 
 export function Navbar() {
   const pathname = usePathname()
+  const [user, setUser] = useState<any>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null)
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.href = "/"
+  }
+
+  const publicNav = [
+    { name: "Accueil", href: "/" },
+    { name: "Carte", href: "/map" },
+  ]
+
+  const privateNav = [
+    { name: "Accueil", href: "/" },
+    { name: "Carte", href: "/map" },
+    { name: "Tableau de bord", href: "/dashboard" },
+  ]
+
+  const navigation = user ? privateNav : publicNav
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -40,6 +72,22 @@ export function Navbar() {
                 </Link>
               ))}
             </div>
+          </div>
+          <div className="flex items-center">
+            {user ? (
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                Déconnexion
+              </Button>
+            ) : (
+              <div className="flex space-x-2">
+                <Link href="/login">
+                  <Button variant="ghost" size="sm">Connexion</Button>
+                </Link>
+                <Link href="/signup">
+                  <Button size="sm">S&apos;inscrire</Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
